@@ -10,7 +10,7 @@ public class myDataClass {
 	String subcategory;
 	String location;
 	String status;
-	int goal;
+	Double goal;
 	int pledged;
 	double funded_percentage;
 	int backers;
@@ -27,7 +27,7 @@ public class myDataClass {
 	}
 	
 	public myDataClass(final String project_id, final String name, final String url, final String category, final String subcategory, final String location, final String status, 
-			final int goal, final int pledged, final double funded_percentage, final int backers, final Date funded_date, final int levels, final String reward_levels,
+			final Double goal, final int pledged, final double funded_percentage, final int backers, final Date funded_date, final int levels, final String reward_levels,
 			final int updates, final int comments, final double duration) {
 		
 		this.project_id = project_id;
@@ -106,7 +106,7 @@ public class myDataClass {
 	/**
 	 * @param goal the goal to set
 	 */
-	public void setGoal(int goal) {
+	public void setGoal(Double goal) {
 		this.goal = goal;
 	}
 
@@ -225,7 +225,7 @@ public class myDataClass {
 	/**
 	 * @return the goal
 	 */
-	public int getGoal() {
+	public Double getGoal() {
 		return goal;
 	}
 
@@ -301,7 +301,7 @@ public class myDataClass {
 		result = prime * result + subcategory.hashCode();
 		result = prime * result + location.hashCode();
 		result = prime * result + status.hashCode();
-		result = prime * result + goal;
+		result = prime * result + Double.toString(goal).hashCode();
 		result = prime * result + pledged;
 		result = prime * result + Double.toString(funded_percentage).hashCode();
 		result = prime * result + backers;

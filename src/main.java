@@ -4,9 +4,11 @@ import java.io.File;
 import java.io.FileReader;
 //import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.TreeMap;
 import java.util.HashSet;
+import java.util.Set;
 
+import org.supercsv.cellprocessor.Optional;
 import org.supercsv.cellprocessor.ParseDate;
 import org.supercsv.cellprocessor.ParseDouble;
 import org.supercsv.cellprocessor.ParseInt;
@@ -23,7 +25,9 @@ import org.supercsv.prefs.CsvPreference;
 
 public class main {
 	
-	static HashSet<myDataClass> campaigns;
+	//static HashSet<myDataClass> campaigns;
+	
+	static HashSet<String> projectIDs;
 	
 	//Entire data set
 	static int numElements = 0;
@@ -49,7 +53,18 @@ public class main {
 	static double meanGoalEnded = 0;
 	static double meanDurationEnded = 0;
 
-	static HashMap<Integer, Integer> histogram;
+	static TreeMap<Integer, Integer> histogram; //number of backers
+	
+	static TreeMap<Double, Integer> mode; //duration
+	
+	static TreeMap<String, Integer> categoryHistogram;
+	static TreeMap<String, Integer> subcategoryHistogram;
+	static TreeMap<String, Set<String>> catMapSub; 
+	static TreeMap<String, TreeMap<String, Integer>> catHistogram;
+	static TreeMap<String, TreeMap<String, Integer>> catHistogramSuccessful;
+	static TreeMap<String, TreeMap<String, Integer>> catHistogramFailed;
+	
+	static double avgTiersSuccessful;
 	
 	public static void main(String[] args) {
 
@@ -71,10 +86,10 @@ public class main {
 
 	}
 	
-	//sets up 20 buckets of size 20i per bucket, along with an 21st bucket for spillage
+	//sets up 20 buckets of size 20i per bucket, along with an 21st bucket (key=401) for spillage
 	static void initHash() {	
 		
-		histogram = new HashMap<Integer, Integer>();
+		histogram = new TreeMap<Integer, Integer>();
 		int q = 0;
 		for(int i = 0; i < 20;i++) {
 			q+=20;
@@ -121,41 +136,129 @@ public class main {
 		System.out.println("Ended Campaigns - Mean Goal: " + (meanGoalEnded/numElementsEnded));
 		System.out.println("Ended Campaigns - Mean Duration (Days): " + (meanDurationEnded/numElementsEnded));
 		
+		//Histogram of num backers in all campaigns
+		System.out.println("");
+		System.out.println("Histogram: Number of Backers");
+		System.out.println(histogram);
+	
+		//Mode & Median of duration
+		System.out.println("");
+		System.out.println("All Campaigns - Duration Mode:" + returnMode());
+		System.out.println("All Campaigns - Duration Median: " + returnMedian());
+		
+		/*//successful categories, subcategories, frequency
+		System.out.println("");
+		System.out.println("-------------------------------Successful Campaigns-------------------------------");
+		printCategories(catHistogramSuccessful);
+		
+		System.out.println("");
+		System.out.println("-------------------------------Failed Campaigns-------------------------------");
+		printCategories(catHistogramFailed);*/
+		
+		//successful/failed ratios
+		System.out.println("");
+		printRatios();
+		
+		//successful/failed ratios
+		System.out.println("");
+		System.out.println("Average successful reward tiers: " + avgTiersSuccessful/numElementsSuccessful);
+		
 		System.out.println("\nEnd Analytics\n");
 	}
 	
+	static void printRatios() {
+		
+		TreeMap<String, Integer> tempS, tempA;
+		int countS, countA;
+		for(String c : catHistogram.keySet()) {
+			
+			countS = 0;
+			countA = 0;
+			System.out.println("Category: " + c);
+			tempS = catHistogramSuccessful.get(c);
+			tempA = catHistogram.get(c);
+			
+			for(String s : tempS.keySet()) {
+				System.out.println("  Subcategory: " + s + " - " + ((double)tempS.get(s) / (double)tempA.get(s)) + " " + tempS.get(s) + "/" + tempA.get(s));
+				countS+=tempS.get(s);
+				countA+=tempA.get(s);
+			}
+			System.out.println("  Success vs Total: " + ((double) countS/ (double)countA) + " " + countS + "/" + countA);
+			System.out.println("  Category Total vs All Total: " + ((double) countA/ (double)numElementsEnded) + " " + countA + "/" + numElementsEnded);
+			System.out.println("  Category Success vs All Success: " + ((double) countS/ (double)numElementsSuccessful) + " " + countS + "/" + numElementsSuccessful);
+			
+		}
+
+	}
 	
+	static void printCategories(TreeMap<String, TreeMap<String, Integer>> catH) {
+		
+		//catHistogram
+		TreeMap<String, Integer> temp;
+		int i;
+		for(String c : catH.keySet()) {
+			
+			i = 0;
+			System.out.println("Category: " + c);
+			temp = catH.get(c);
+			
+			for(String s : temp.keySet()) {
+				System.out.println("  Subcategory: " + s + " - " + temp.get(s));
+				i+=temp.get(s);
+			}
+			System.out.println("  Total: " + i);
+			
+		}
+	}
+	
+	static Double returnMode() {
+		Double result = 0.0;
+		int resultFreq = 0;
+		
+		Set<Double> keySet = mode.keySet();
+		
+		for(Double d : keySet) {
+			if (mode.get(d) > resultFreq) {
+				result = d;
+				resultFreq = mode.get(d);
+			}
+		}
+		
+		return result;
+	}
+	
+	static Double returnMedian() {
+		double result = 0.0;
+		int numLeft = numElements/2;
+		
+		for(Double d : mode.keySet()) {
+			numLeft -= mode.get(d);
+			if(numLeft<=0) {
+				result = d;
+				break;
+			}
+		}
+		
+		return result;
+	}
 	
 	static void readData(File file) throws Exception{
-		
-		//Scanner reading in file
-		/*Scanner scanner = new Scanner(file);
-		scanner.useDelimiter(",");
-		while(scanner.hasNext()) {
-			String data = scanner.next();
-			System.out.println(data);
-		}
-		
-		scanner.close();*/
-		
-		
-		//FileReader reading in line by line for future regular expression breakdown
-		/*FileReader fileReader = new FileReader(file);
-		BufferedReader bufferedReader = new BufferedReader(fileReader);
-		String line;
-		
-		while((line = bufferedReader.readLine())!=null) {
-			System.out.println(line);
-		}
-		bufferedReader.close();
-		fileReader.close();*/
 		
 		 
 		//initiate the campaigns variable with all of the data from the CSV
 		 
 		 ICsvBeanReader beanReader = null;
-		 campaigns = new HashSet<myDataClass>();
-		 
+		 //campaigns = new HashSet<myDataClass>();
+		 mode = new TreeMap<Double, Integer>();
+         projectIDs = new HashSet<String>();
+         //categoryHistogram = new TreeMap<String, Integer>();
+         //subcategoryHistogram = new TreeMap<String, Integer>();
+         //catMapSub = new TreeMap<String, Set<String>>();
+         catHistogram = new TreeMap<String, TreeMap<String, Integer>>();
+         catHistogramSuccessful = new TreeMap<String, TreeMap<String, Integer>>();
+         catHistogramFailed = new TreeMap<String, TreeMap<String, Integer>>();
+         TreeMap<String, Integer> m;
+         avgTiersSuccessful = 0.0;
 		 
 		 try {
                 beanReader = new CsvBeanReader(new FileReader(file), CsvPreference.STANDARD_PREFERENCE);
@@ -164,39 +267,95 @@ public class main {
                 final String[] header = beanReader.getHeader(true);
                 final CellProcessor[] processors = getProcessors();
                 
+                
                 myDataClass campaign;
                 while( (campaign = beanReader.read(myDataClass.class, header, processors)) != null ) {
                         System.out.println(String.format("lineNo=%s, rowNo=%s, campaign=%s", beanReader.getLineNumber(),
                                 beanReader.getRowNumber(), campaign));
-                        //campaigns.add(campaign);
+                  
                         
-                        //MEAN
-                        numElements++;
-                        meanPledged += campaign.getPledged();
-                        meanGoal += campaign.getGoal();
-                        meanDuration += campaign.getDuration();
+                        if(!projectIDs.contains(campaign.getProject_id())) {
+	                        projectIDs.add(campaign.getProject_id());
+	                        
+	                        //MEAN
+	                        numElements++;
+	                        meanPledged += campaign.getPledged();
+	                        meanGoal += campaign.getGoal();
+	                        meanDuration += campaign.getDuration();
+	                        
+	                        if(campaign.getStatus().equals("successful")) {
+	                        	numElementsSuccessful++;
+	                        	meanPledgedSuccessful += campaign.getPledged();
+	                            meanGoalSuccessful += campaign.getGoal();
+	                            meanDurationSuccessful += campaign.getDuration();
+	                            
+	                            catHistogramSuccessful.putIfAbsent(campaign.getCategory(), new TreeMap<String, Integer>());
+		                        m = catHistogramSuccessful.get(campaign.getCategory());
+		                        m.putIfAbsent(campaign.getSubcategory(), 0);
+		                        m.put(campaign.getSubcategory(), m.get(campaign.getSubcategory())+1);
+		                        catHistogramSuccessful.put(campaign.getCategory(), m);
+		                        
+		                        avgTiersSuccessful += campaign.getLevels();
+
+	                        } else if(campaign.getStatus().equals("failed")) {
+	                        	numElementsFailed++;
+	                        	meanPledgedFailed += campaign.getPledged();
+	                            meanGoalFailed += campaign.getGoal();
+	                            meanDurationFailed += campaign.getDuration();
+	                            
+	                            catHistogramFailed.putIfAbsent(campaign.getCategory(), new TreeMap<String, Integer>());
+		                        m = catHistogramFailed.get(campaign.getCategory());
+		                        m.putIfAbsent(campaign.getSubcategory(), 0);
+		                        m.put(campaign.getSubcategory(), m.get(campaign.getSubcategory())+1);
+		                        catHistogramFailed.put(campaign.getCategory(), m);
+
+	                        }
+	                        
+	                        if(!campaign.getStatus().equals("live")) {
+	                        	numElementsEnded++;
+	                        	meanPledgedEnded += campaign.getPledged();
+	                        	meanGoalEnded += campaign.getGoal();
+	                        	meanDurationEnded += campaign.getDuration();
+	                        	
+	                        	catHistogram.putIfAbsent(campaign.getCategory(), new TreeMap<String, Integer>());
+		                        m = catHistogram.get(campaign.getCategory());
+		                        m.putIfAbsent(campaign.getSubcategory(), 0);
+		                        m.put(campaign.getSubcategory(), m.get(campaign.getSubcategory())+1);
+		                        catHistogram.put(campaign.getCategory(), m);
+	                        }
+	                        
+	                        
+	                        //histogram
+	                        addToHistogram(campaign);
+	                        
+	                        //mode/median
+	                        if(mode.containsKey(campaign.getDuration())) {
+	                        	mode.put(campaign.getDuration(), mode.get(campaign.getDuration())+1);
+	                        } else {
+	                        	mode.put(campaign.getDuration(), 1);
+	                        }
+	                        
+	                        
+	                        //Maps Category to Subcategory to Frequency of the category/subcategory pair
+	                        
+	                        
+	                        
+	                        /*if(categoryHistogram.containsKey(campaign.getCategory())) {
+	                        	categoryHistogram.put(campaign.getCategory(), categoryHistogram.get(campaign.getCategory())+1);
+	                        } else {
+	                        	categoryHistogram.put(campaign.getCategory(), 1);
+	                        }
+	                        
+	                        if(subcategoryHistogram.containsKey(campaign.getSubcategory())) {
+	                        	subcategoryHistogram.put(campaign.getSubcategory(), subcategoryHistogram.get(campaign.getSubcategory())+1);
+	                        } else {
+	                        	subcategoryHistogram.put(campaign.getSubcategory(), 1);
+	                        }
+	                       
+	                        catMapSub.putIfAbsent(campaign.getCategory(), new HashSet<String>());
+	                        catMapSub.put(campaign.getCategory(), catMapSub.get(campaign.getCategory()).add(campaign.getSubcategory()));*/
                         
-                        if(campaign.getStatus().equals("successful")) {
-                        	numElementsSuccessful++;
-                        	meanPledgedSuccessful += campaign.getPledged();
-                            meanGoalSuccessful += campaign.getGoal();
-                            meanDurationSuccessful += campaign.getDuration();
-                        } else if(campaign.getStatus().equals("failed")) {
-                        	numElementsFailed++;
-                        	meanPledgedFailed += campaign.getPledged();
-                            meanGoalFailed += campaign.getGoal();
-                            meanDurationFailed += campaign.getDuration();
                         }
-                        
-                        if(!campaign.getStatus().equals("live")) {
-                        	numElementsEnded++;
-                        	meanPledgedEnded += campaign.getPledged();
-                        	meanGoalEnded += campaign.getGoal();
-                        	meanDurationEnded += campaign.getDuration();
-                        }
-                        
-                        
-                        
                         
                 }
                 
@@ -211,24 +370,39 @@ public class main {
         }
 	}
 	
-	
-	
+	//adds number of backers data to histogram
+	private static void addToHistogram(myDataClass campaign) {
+		int b = campaign.getBackers();
+		
+		for(int i = 20; i <= 400; i+=20) {
+			if (b<=i) {
+				histogram.put(i, histogram.get(i)+1);
+				break;
+			}
+		}
+		
+		if(b>400) {
+			histogram.put(401, histogram.get(401)+1);
+		}
+		
+	}
+
 	private static CellProcessor[] getProcessors() {
 		final CellProcessor[] processors = new CellProcessor[] { 
-                new UniqueHashCode(), //Project ID 
+                new NotNull(), //Project ID 
                 new NotNull(), //name
                 new NotNull(), //url
                 new NotNull(), //category
                 new NotNull(), //sub category
-                new NotNull(), //location
+                new Optional(), //location
                 new NotNull(), //status
-                new ParseInt(), //goal
-                new ParseInt(), //pledged
+                new ParseDouble(), //goal
+                new Optional( new ParseInt()), //pledged
                 new ParseDouble(), //funded Percentage
                 new ParseInt(), //backers
                 new ParseDate("E, dd MMM yyyy HH:mm:ss Z"), // funded Date
                 new ParseInt(), //num levels
-                new NotNull(), //reward levels, un-parsed
+                new Optional(), //reward levels, un-parsed
                 new ParseInt(), //updates
                 new ParseInt(), //comments
                 new ParseDouble() //duration in days
